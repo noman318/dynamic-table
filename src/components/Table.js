@@ -5,6 +5,11 @@ import axios from "axios";
 import React, { useState, useEffect, useMemo } from "react";
 import CustomTableHead from "./TableHead";
 import {
+  FormControl,
+  Input,
+  InputLabel,
+  MenuItem,
+  Select,
   TableBody,
   TableCell,
   TableContainer,
@@ -18,7 +23,9 @@ const Table = () => {
   const [order, setOrder] = useState("asc");
   const [orderBy, setOrderBy] = useState("");
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [filteredData, setFilteredData] = useState([]);
+  const [searchText, setSearchText] = useState("");
 
   const handleRequestSort = (event, property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -81,15 +88,80 @@ const Table = () => {
     getTableData();
   }, []);
 
-  const visibleRows = useMemo(
-    () =>
-      stableSort(tableData, getComparator(order, orderBy)).slice(
+  const filterData = (e) => {
+    const fiterValue = e.target.value;
+    // console.log("fiterValue", fiterValue);
+    if (fiterValue === "All") {
+      setFilteredData(tableData);
+      return;
+    }
+    const filterDataFromTable = tableData?.filter(
+      (data) => data.title === fiterValue
+    );
+    setFilteredData(filterDataFromTable);
+  };
+
+  const handleSearch = (e) => {
+    const searchTerm = e.target.value;
+    // console.log("searchTerm", searchTerm);
+    setSearchText(searchTerm?.toLowerCase());
+  };
+
+  const getAllTitle = () => {
+    let uniqueTitle = [];
+    tableData?.map((data) => {
+      if (data.title && uniqueTitle.indexOf(data.title) === -1) {
+        uniqueTitle.push(data.title);
+      }
+    });
+    // console.log("uniqueTitle", uniqueTitle);
+    return uniqueTitle;
+  };
+  // getAllTitle();
+  // console.log("searchText", searchText);
+  // const visibleRows = useMemo(
+  //   () =>
+  //     stableSort(filteredData, getComparator(order, orderBy)).slice(
+  //       page * rowsPerPage,
+  //       page * rowsPerPage + rowsPerPage
+  //     ),
+  //   [tableData, filteredData, order, orderBy, page, rowsPerPage]
+  // );
+
+  // console.log("searchedData", searchedData);
+
+  const newVisibleRows = useMemo(() => {
+    if (searchText?.length > 0) {
+      const searchedData = tableData.filter((data) => {
+        return tableHead.some((field) => {
+          const value = data[field];
+          if (
+            typeof value === "string" &&
+            value.toLowerCase().includes(searchText.toLowerCase())
+          ) {
+            return true;
+          }
+          return false;
+        });
+      });
+      // setSearchResults(searchedData);
+      return stableSort(searchedData, getComparator(order, orderBy)).slice(
         page * rowsPerPage,
         page * rowsPerPage + rowsPerPage
-      ),
-    [tableData, order, orderBy, page, rowsPerPage]
-  );
-  console.log("visibleRows", visibleRows);
+      );
+    } else if (filteredData.length > 0) {
+      return stableSort(filteredData, getComparator(order, orderBy)).slice(
+        page * rowsPerPage,
+        page * rowsPerPage + rowsPerPage
+      );
+    } else {
+      return stableSort(tableData, getComparator(order, orderBy)).slice(
+        page * rowsPerPage,
+        page * rowsPerPage + rowsPerPage
+      );
+    }
+  }, [tableData, filteredData, searchText, order, orderBy, page, rowsPerPage]);
+  // console.log("newVisibleRows", newVisibleRows);
 
   const getCellContent = (row, head) => {
     // console.log("typeofRow", row);
@@ -101,6 +173,32 @@ const Table = () => {
   return (
     <div>
       <h2>Table</h2>
+      <Input
+        // id="demo-simple-select-autowidth-label"
+        placeholder="Search..."
+        onChange={handleSearch}
+      />
+
+      <FormControl sx={{ m: 1, minWidth: 80 }}>
+        <InputLabel id="demo-simple-select-autowidth-label">Title</InputLabel>
+        <Select
+          labelId="demo-simple-select-autowidth-label"
+          id="demo-simple-select-autowidth"
+          // value={age}
+          onChange={filterData}
+          autoWidth
+          label="Age"
+        >
+          <MenuItem value="All">All</MenuItem>
+          {getAllTitle() &&
+            getAllTitle()?.map((data, index) => (
+              <MenuItem value={data} key={index}>
+                {data}
+              </MenuItem>
+            ))}
+        </Select>
+      </FormControl>
+
       <TableContainer>
         <table>
           <CustomTableHead
@@ -110,7 +208,7 @@ const Table = () => {
             onRequestSort={handleRequestSort}
           />
           <TableBody>
-            {visibleRows?.map((row, index) => {
+            {newVisibleRows?.map((row, index) => {
               return (
                 <TableRow
                   hover
